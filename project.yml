@@ -1,0 +1,57 @@
+name: VystechVPN
+
+options:
+  bundleIdPrefix: com.vystech
+  deploymentTarget:
+    iOS: "16.0"
+
+settings:
+  base:
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "1"
+    CODE_SIGN_STYLE: Automatic
+    LIBRARY_SEARCH_PATHS: $(inherited) $(PROJECT_DIR)/Dependencies/wireguard-apple/Sources/WireGuardKitGo/out
+
+packages:
+  WireGuardKit:
+    path: Dependencies/wireguard-apple
+
+targets:
+  VystechVPN:
+    type: application
+    platform: iOS
+    sources:
+      - path: Sources/App
+      - path: Sources/Shared
+    info:
+      path: Sources/App/Info.plist
+    entitlements:
+      path: Sources/App/App.entitlements
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.vystech.vpn
+        INFOPLIST_FILE: Sources/App/Info.plist
+        CODE_SIGN_ENTITLEMENTS: Sources/App/App.entitlements
+    dependencies:
+      - target: VystechVPNExtension
+      - package: WireGuardKit
+        product: WireGuardKit
+
+  VystechVPNExtension:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: Sources/NetworkExtension
+      - path: Sources/Shared
+    info:
+      path: Sources/NetworkExtension/Info.plist
+    entitlements:
+      path: Sources/NetworkExtension/NetworkExtension.entitlements
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.vystech.vpn.network-extension
+        INFOPLIST_FILE: Sources/NetworkExtension/Info.plist
+        CODE_SIGN_ENTITLEMENTS: Sources/NetworkExtension/NetworkExtension.entitlements
+    dependencies:
+      - package: WireGuardKit
+        product: WireGuardKit

@@ -1,0 +1,74 @@
+name: Build iOS App
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  SCHEME: VystechVPN
+  PROJECT: VystechVPN.xcodeproj
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_16.2.app/Contents/Developer
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: Patch WireGuardKit for Xcode 16
+        run: |
+          sed -i '' 's/swift-tools-version:5.3/swift-tools-version:5.5/' Dependencies/wireguard-apple/Package.swift
+          sed -i '' '1s/^/#include <sys\/types.h>\n/' Dependencies/wireguard-apple/Sources/WireGuardKitC/WireGuardKitC.h
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+          cache: false
+
+      - name: Build WireGuardKitGo
+        run: |
+          cd Dependencies/wireguard-apple/Sources/WireGuardKitGo
+          make PLATFORM_NAME=iphoneos ARCHS="arm64"
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Build
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project ${{ env.PROJECT }} \
+            -scheme ${{ env.SCHEME }} \
+            -sdk iphoneos \
+            -arch arm64 \
+            -configuration Release \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            DEVELOPMENT_TEAM="" \
+            2>&1 | tee build.log | tail -80
+
+      - name: Upload build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: build.log
+          retention-days: 7
